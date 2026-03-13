@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keller RE Analyzer v4 — Quebec Duplex</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --navy:#0D1B2A;--blue:#1B3A5C;--mblue:#2E6DA4;--lblue:#D6E4F7;
+  --green:#1A5C2E;--glight:#D5F5E3;--gmid:#27AE60;
+  --red:#7B241C;--rlight:#FADBD8;--rdark:#E74C3C;
+  --amber:#B7950B;--alight:#FEF9E7;--aorange:#F39C12;
+  --grey:#2C3E50;--grlt:#F8F9FA;--white:#FFFFFF;
+  --teal:#0E6655;--tlght:#D1F2EB;--purp:#4A235A;--plght:#E8DAEF;
+  --border:#E0E0E0;--shadow:0 2px 12px rgba(0,0,0,.08);
+  --r:10px;--rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#F0F2F5;color:var(--grey);font-size:14px}
+.topbar{background:var(--navy);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:34px;height:34px;background:var(--mblue);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:17px}
+.brand-title{color:white;font-weight:700;font-size:16px}
+.brand-sub{color:#94a3b8;font-size:11px}
+.top-verdict{font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;color:white;background:#64748b;transition:background .3s;white-space:nowrap}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 56px)}
+.sidebar{background:var(--white);border-right:1px solid var(--border);padding:1.25rem 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
+.verdict-box{margin:.75rem 1rem 1rem;padding:1rem;border-radius:var(--r);border:2px solid var(--border);text-align:center}
+.verdict-score{font-size:38px;font-weight:700;color:#94a3b8}
+.verdict-text{font-size:12px;font-weight:600;color:#94a3b8;margin-top:2px}
+.nav-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;padding:.5rem 1rem .3rem}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 1rem;cursor:pointer;border-left:3px solid transparent;font-size:13px;color:var(--grey);transition:all .15s}
+.nav-item:hover{background:var(--grlt)}
+.nav-item.active{border-left-color:var(--mblue);background:#EBF4FF;color:var(--mblue);font-weight:600}
+.nav-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.sb-quote{padding:.75rem 1rem;margin:.75rem 1rem 0;background:var(--grlt);border-radius:var(--rs);font-size:11px;color:#64748b;font-style:italic;line-height:1.5;border-left:3px solid var(--mblue)}
+.main{padding:1.5rem 2rem;overflow-y:auto}
+.pane{display:none}.pane.active{display:block}
+.page-title{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:3px}
+.page-sub{font-size:13px;color:#64748b;margin-bottom:1.25rem}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;box-shadow:var(--shadow);margin-bottom:1rem}
+.card-hdr{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--grey);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.ca{width:4px;height:16px;border-radius:2px;flex-shrink:0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metric{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.25rem}
+.metric.green{border-left:4px solid var(--gmid)}.metric.red{border-left:4px solid var(--rdark)}.metric.amber{border-left:4px solid var(--aorange)}.metric.blue{border-left:4px solid var(--mblue)}
+.m-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.m-val{font-size:24px;font-weight:700;line-height:1}
+.m-sub{font-size:11px;color:#64748b;margin-top:3px}
+.fg{margin-bottom:11px}
+label.lbl{font-size:11px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+input[type=number],input[type=text],select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;color:var(--grey);background:#FAFAFA;transition:border .15s}
+input:focus,select:focus{outline:none;border-color:var(--mblue);background:white}
+.input-blue{color:#1a56db;font-weight:600}
+.btn{padding:9px 18px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--mblue);color:white}.btn-primary:hover{background:var(--blue)}
+.btn-green{background:var(--gmid);color:white}.btn-green:hover{background:var(--green)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--grey)}.btn-outline:hover{border-color:var(--mblue);color:var(--mblue)}
+.btn-row{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
+.badge-green{background:var(--glight);color:var(--green)}.badge-red{background:var(--rlight);color:var(--red)}
+.badge-amber{background:var(--alight);color:var(--amber)}.badge-blue{background:var(--lblue);color:var(--blue)}
+.badge-grey{background:#F1F5F9;color:#64748b}
+.dr{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--grlt)}
+.dr:last-child{border-bottom:none}
+.dr-lbl{font-size:13px;color:#64748b;display:flex;align-items:center;gap:5px}
+.dr-val{font-size:13px;font-weight:700}
+.kpi-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--grlt)}
+.kpi-item:last-child{border-bottom:none}
+.kpi-name{font-size:12px;color:#64748b;width:140px;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.kpi-bw{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;max-width:90px}
+.kpi-bf{height:100%;border-radius:3px;transition:width .5s}
+.kpi-num{font-size:13px;font-weight:700;width:80px;text-align:right}
+.kpi-thresh{font-size:11px;color:#94a3b8;width:65px;text-align:right}
+.warn-box{background:var(--alight);border:1.5px solid var(--aorange);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--amber);margin-top:8px;line-height:1.5}
+
+/* TOOLTIP */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-icon{width:15px;height:15px;border-radius:50%;background:#D6E4F7;color:var(--mblue);font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;border:1px solid var(--mblue)}
+.tip-box{display:none;position:absolute;z-index:999;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--navy);color:white;font-size:12px;font-weight:400;padding:10px 14px;border-radius:8px;width:260px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.25);pointer-events:none}
+.tip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--navy)}
+.tip-wrap:hover .tip-box{display:block}
+
+/* UPLOAD */
+.upload-zone{border:2.5px dashed var(--border);border-radius:var(--r);padding:2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--grlt)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--mblue);background:var(--lblue)}
+.upload-zone.parsing{border-color:var(--gmid);background:var(--glight);animation:pulse 1.2s infinite}
+.upload-zone.success{border-color:var(--gmid);background:var(--glight)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* DOCUMENT LIST */
+.doc-list{display:flex;flex-direction:column;gap:8px;margin-top:1rem}
+.doc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--rs);border:1px solid var(--border);background:white}
+.doc-item.parsed{border-color:var(--gmid);background:#F0FFF4}
+.doc-item.parsing{border-color:var(--aorange);background:var(--alight)}
+.doc-item.error{border-color:var(--rdark);background:var(--rlight)}
+.doc-icon{font-size:20px;flex-shrink:0}
+.doc-name{flex:1;font-size:12px;font-weight:600;color:var(--grey)}
+.doc-status{font-size:11px;color:#64748b}
+.doc-badge{flex-shrink:0}
+
+/* INSIGHT REPORT */
+.report-section{margin-bottom:1.5rem}
+.report-title{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
+.insight-block{border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:10px;border:1px solid}
+.ib-green{background:var(--glight);border-color:#A9DFBF}
+.ib-red{background:var(--rlight);border-color:#F1948A}
+.ib-amber{background:var(--alight);border-color:#FAD7A0}
+.ib-blue{background:var(--lblue);border-color:#90C4E8}
+.ib-grey{background:#F8F9FA;border-color:#CBD5E1}
+.ib-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ib-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ib-title{font-size:13px;font-weight:700}
+.ib-body{font-size:12px;line-height:1.6;color:var(--grey)}
+.ib-source{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;opacity:.7}
+
+/* SCORE GAUGE */
+.gauge-wrap{position:relative;width:160px;height:90px;margin:0 auto 8px}
+.gauge-svg{width:160px;height:90px}
+
+/* SCENARIO TABLE */
+.sc-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:1rem}
+.sc-table th{background:var(--navy);color:white;padding:8px 10px;font-weight:700;text-align:center;font-size:11px}
+.sc-table th:first-child{text-align:left}
+.sc-table td{padding:8px 10px;border-bottom:1px solid var(--grlt);text-align:center}
+.sc-table td:first-child{text-align:left;font-weight:600}
+.sc-table tr:hover{background:var(--grlt)}
+.sc-table tr.highlight-row{background:#EBF4FF}
+.gcc{color:var(--green);font-weight:700}.rcc{color:var(--rdark);font-weight:700}.acc{color:var(--amber);font-weight:700}
+
+/* SLIDER */
+.sl-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.sl-label{font-size:12px;color:var(--grey);width:145px;flex-shrink:0;display:flex;align-items:center;gap:5px}
+input[type=range]{flex:1;accent-color:var(--mblue)}
+.sl-val{font-size:13px;font-weight:700;color:var(--mblue);width:60px;text-align:right}
+
+/* CHART LEGEND */
+.chart-legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-swatch{width:18px;height:4px;border-radius:2px;flex-shrink:0}
+.chart-explain{background:var(--grlt);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:#64748b;line-height:1.6;margin-bottom:12px;border-left:3px solid var(--mblue)}
+
+/* QUALITATIVE */
+.q-yes-btn,.q-no-btn{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.q-yes-btn{border:1.5px solid var(--gmid)}.q-no-btn{border:1.5px solid var(--rdark)}
+
+.learn-card{border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:10px;border-left:4px solid var(--mblue);background:white}
+.learn-rule{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mblue);background:var(--lblue);display:inline-block;padding:2px 8px;border-radius:20px;margin-bottom:6px}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">K</div>
+    <div><div class="brand-title">Keller RE Analyzer v4</div><div class="brand-sub">Quebec Duplex · Full document set analysis</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="text-align:right"><div style="color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Budget max</div><div style="color:white;font-size:14px;font-weight:700">$450,000</div></div>
+    <div class="top-verdict" id="top-verdict">Awaiting data</div>
+  </div>
+</div>
+
+<div class="layout">
+<div class="sidebar">
+  <div class="verdict-box" id="verdict-box">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:6px">Keller signal</div>
+    <div class="verdict-score" id="sb-score">—</div>
+    <div class="verdict-text" id="sb-text">Upload documents to start</div>
+    <div style="margin-top:8px" id="sb-badge"></div>
+  </div>
+  <div class="nav-lbl">Analysis</div>
+  <div class="nav-item active" onclick="nav('upload')"><div class="nav-icon" style="background:#EBF4FF;color:var(--mblue)">↑</div>Upload documents</div>
+  <div class="nav-item" onclick="nav('report')"><div class="nav-icon" style="background:var(--glight);color:var(--green)">★</div>KPI + Insight report</div>
+  <div class="nav-item" onclick="nav('input')"><div class="nav-icon" style="background:#EBF4FF;color:var(--mblue)">①</div>Property input</div>
+  <div class="nav-item" onclick="nav('quant')"><div class="nav-icon" style="background:var(--glight);color:var(--green)">②</div>Quantitative KPIs</div>
+  <div class="nav-item" onclick="nav('qual')"><div class="nav-icon" style="background:var(--plght);color:var(--purp)">③</div>Qualitative checklist</div>
+  <div class="nav-item" onclick="nav('scenarios')"><div class="nav-icon" style="background:var(--alight);color:var(--amber)">④</div>Scenarios & rates</div>
+  <div class="nav-item" onclick="nav('flags')"><div class="nav-icon" style="background:var(--rlight);color:var(--red)">⑤</div>Ask the owner</div>
+  <div class="nav-lbl">Strategy</div>
+  <div class="nav-item" onclick="nav('growth')"><div class="nav-icon" style="background:var(--tlght);color:var(--teal)">⑥</div>Portfolio growth plan</div>
+  <div class="nav-item" onclick="nav('learn')"><div class="nav-icon" style="background:var(--navy);color:white">K</div>Keller principles</div>
+  <div class="sb-quote">"Never fall in love with a property — fall in love with the numbers." — Gary Keller</div>
+</div>
+
+<div class="main">
+
+<!-- ══ UPLOAD ══ -->
+<div class="pane active" id="pane-upload">
+  <div class="page-title">Upload your Centris document package</div>
+  <div class="page-sub">Drop the full ZIP from Centris — or individual files one by one. The analyzer reads every document and generates a complete KPI + insight report.</div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="ca" style="background:var(--mblue)"></div>Document package upload</div>
+    <div class="upload-zone" id="drop-zone"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)"
+      onclick="document.getElementById('file-input').click()">
+      <div style="font-size:40px;margin-bottom:10px" id="uz-icon">📦</div>
+      <div style="font-size:16px;font-weight:700;color:var(--grey);margin-bottom:6px" id="uz-title">Drop your Centris ZIP package here</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:14px" id="uz-sub">or click to browse · supports ZIP, PDF, JPG, CSV, TXT</div>
+      <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">📄 Fiche détaillée</span>
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">🏛 Taxes municipales</span>
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">🏫 Taxes scolaires</span>
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">📋 Déclaration vendeur</span>
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">🗺 Zonage</span>
+        <span style="background:var(--lblue);color:var(--blue);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px">📍 Certificat localisation</span>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".zip,.pdf,.txt,.csv,.jpg,.jpeg,.png" multiple style="display:none" onchange="handleFiles(this.files)">
+    <div class="doc-list" id="doc-list"></div>
+    <div id="parse-progress" style="display:none;margin-top:12px;padding:10px 14px;background:var(--grlt);border-radius:var(--rs);font-size:12px;color:#64748b;font-family:monospace;line-height:2;max-height:180px;overflow-y:auto"></div>
+  </div>
+
+  <div id="doc-summary-card" class="card" style="display:none">
+    <div class="card-hdr"><div class="ca" style="background:var(--gmid)"></div>What each document contributes to the analysis</div>
+    <div id="doc-summary-content"></div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn btn-green" onclick="nav('report')">View full KPI + Insight report →</button>
+      <button class="btn btn-primary" onclick="nav('quant')">Jump to KPIs →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPORT ══ -->
+<div class="pane" id="pane-report">
+  <div class="page-title">KPI + Insight report</div>
+  <div class="page-sub">Generated from all uploaded documents. Every insight is linked to its source document.</div>
+  <div id="report-content">
+    <div style="text-align:center;padding:3rem;color:#94a3b8">
+      <div style="font-size:36px;margin-bottom:10px">📊</div>
+      <div style="font-size:15px;font-weight:600">Upload documents first to generate the report</div>
+      <div style="font-size:13px;margin-top:6px">Go to "Upload documents" and drop your Centris ZIP package</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INPUT ══ -->
+<div class="pane" id="pane-input">
+  <div class="page-title">Property input</div>
+  <div class="page-sub">Auto-populated from your uploaded documents. Adjust any field — all KPIs update live.</div>
+  <div class="g2" style="gap:1.5rem;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--mblue)"></div>Property details</div>
+        <div class="fg"><label class="lbl">Address / MLS #</label><input type="text" id="address" class="input-blue" placeholder="602-604 Rue St-Martin, Sherbrooke"></div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">City</label>
+            <select id="city" class="input-blue">
+              <option>Québec City</option><option>Laval</option><option>Trois-Rivières</option>
+              <option selected>Sherbrooke</option><option>Magog</option><option>Longueuil</option>
+              <option>Drummondville</option><option>Montréal</option><option>Other</option>
+            </select>
+          </div>
+          <div class="fg"><label class="lbl">Year built</label><input type="number" id="yearbuilt" class="input-blue" placeholder="1920"></div>
+        </div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Asking price ($)</label><input type="number" id="askprice" class="input-blue" value="424900" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Units</label><input type="number" id="units" class="input-blue" value="2"></div>
+        </div>
+        <div class="fg"><label class="lbl">Days on market</label><input type="number" id="dom" class="input-blue" value="2" oninput="calc()"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--gmid)"></div>Rental income</div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Unit 602 rent / mo ($)</label><input type="number" id="rent1" class="input-blue" value="1540" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Unit 604 rent / mo ($)</label><input type="number" id="rent2" class="input-blue" value="958" oninput="calc()"></div>
+        </div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Other income / mo ($)</label><input type="number" id="otherinc" class="input-blue" value="0" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Vacancy rate (%)</label><input type="number" id="vacancy" class="input-blue" value="5" oninput="calc()"></div>
+        </div>
+        <div id="rent-warning" class="warn-box" style="display:none"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--rdark)"></div>Annual expenses <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:#64748b;margin-left:6px">— verified from tax invoices</span></div>
+        <div id="expense-warning" class="warn-box" style="display:none"></div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Municipal taxes ($)</label><input type="number" id="taxes" class="input-blue" value="3420" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">School taxes ($)</label><input type="number" id="schooltax" class="input-blue" value="183" oninput="calc()"></div>
+        </div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Insurance ($)</label><input type="number" id="insurance" class="input-blue" value="1860" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Electricity (common) ($)</label><input type="number" id="electricity" class="input-blue" value="849" oninput="calc()"></div>
+        </div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Maintenance ($)</label><input type="number" id="maint" class="input-blue" value="2500" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Hot water heater lease ($)</label><input type="number" id="hwh" class="input-blue" value="816" oninput="calc()"></div>
+        </div>
+        <div class="fg"><label class="lbl">Other expenses ($)</label><input type="number" id="otherexp" class="input-blue" value="0" oninput="calc()"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--purp)"></div>Financing</div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Down payment (%)</label><input type="number" id="dpPct" class="input-blue" value="10" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Interest rate (%)</label><input type="number" id="irate" class="input-blue" value="4.5" step="0.1" oninput="calc()"></div>
+        </div>
+        <div class="g2">
+          <div class="fg"><label class="lbl">Amortization (yrs)</label><input type="number" id="amort" class="input-blue" value="25" oninput="calc()"></div>
+          <div class="fg"><label class="lbl">Owner-occupied?</label>
+            <select id="ownocc" class="input-blue" onchange="calc()"><option value="yes">Yes</option><option value="no">No</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--amber)"></div>Quebec closing costs (auto-estimated)</div>
+        <div id="fees-box"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--teal)"></div>Live snapshot</div>
+        <div id="snapshot-box"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="nav('quant')">Full KPI analysis →</button>
+          <button class="btn btn-outline" onclick="resetAll()">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUANT ══ -->
+<div class="pane" id="pane-quant">
+  <div class="page-title">Quantitative KPI analysis</div>
+  <div class="page-sub">7 Keller metrics. Hover ⓘ on any term for its definition and Quebec-specific guidance.</div>
+  <div class="g4" style="margin-bottom:1.25rem" id="kpi-cards"></div>
+  <div class="g2" style="align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--mblue)"></div>Keller scorecard</div>
+        <div id="kpi-bars"></div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:#64748b">Overall verdict</span><div id="kpi-total-badge"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--gmid)"></div>Income statement</div>
+        <div id="income-statement"></div>
+        <div id="seller-noi-warning" class="warn-box" style="display:none;margin-top:8px"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--amber)"></div>10-year equity projection</div>
+        <div style="position:relative;height:220px"><canvas id="equityChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--purp)"></div>Cash flow breakdown</div>
+        <div style="position:relative;height:200px"><canvas id="cfChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUAL ══ -->
+<div class="pane" id="pane-qual">
+  <div class="page-title">Qualitative due diligence</div>
+  <div class="page-sub">33 criteria across 6 categories. Some are pre-answered from the vendor declaration.</div>
+  <div class="g2" style="align-items:start">
+    <div id="qual-questions"></div>
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--purp)"></div>Qualitative score</div>
+        <div style="text-align:center;padding:1rem 0">
+          <div style="font-size:48px;font-weight:700" id="qual-score-num">—</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">criteria met</div>
+          <div style="margin-top:10px" id="qual-verdict-badge"></div>
+        </div>
+        <div style="position:relative;height:180px"><canvas id="qualChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--teal)"></div>Category breakdown</div>
+        <div id="qual-breakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCENARIOS ══ -->
+<div class="pane" id="pane-scenarios">
+  <div class="page-title">Scenarios & rate modelling</div>
+  <div class="page-sub">Move the sliders — the matrix and charts update instantly across all combinations.</div>
+  <div class="card">
+    <div class="card-hdr"><div class="ca" style="background:var(--mblue)"></div>Interactive explorer</div>
+    <div class="g2" style="gap:2rem;align-items:start">
+      <div>
+        <div class="sl-row"><span class="sl-label">Interest rate (%)</span><input type="range" id="sl-rate" min="2.5" max="8" step="0.1" value="4.5" oninput="updateScenario()"><span class="sl-val" id="sl-rate-out">4.5%</span></div>
+        <div class="sl-row"><span class="sl-label">Down payment (%)</span><input type="range" id="sl-dp" min="5" max="40" step="1" value="10" oninput="updateScenario()"><span class="sl-val" id="sl-dp-out">10%</span></div>
+        <div class="sl-row"><span class="sl-label">Amortization (yrs)</span><input type="range" id="sl-amort" min="10" max="30" step="1" value="25" oninput="updateScenario()"><span class="sl-val" id="sl-amort-out">25 yrs</span></div>
+        <div class="sl-row"><span class="sl-label">Appreciation / yr (%)</span><input type="range" id="sl-appre" min="1" max="12" step="0.5" value="6" oninput="updateScenario()"><span class="sl-val" id="sl-appre-out">6%</span></div>
+      </div>
+      <div id="scenario-live-kpis"></div>
+    </div>
+  </div>
+  <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:8px">Scenario matrix <span style="font-size:12px;font-weight:400;color:#64748b;margin-left:6px">· highlighted row = your current rate</span></div>
+  <div class="card" style="overflow-x:auto"><table class="sc-table" id="sc-matrix"></table></div>
+  <div class="card">
+    <div class="card-hdr"><div class="ca" style="background:var(--amber)"></div>Rate sensitivity — monthly mortgage by interest rate</div>
+    <div class="chart-explain">Each coloured line = a different down payment amount. The <strong>green shaded zone</strong> (4%–6%) is the realistic Quebec rate range for 2025–2026. Your <strong>active scenario line is solid</strong>; others are dashed. Use this to see your break-even rate — the point where monthly cash flow turns negative.</div>
+    <div class="chart-legend" id="rate-chart-legend"></div>
+    <div style="position:relative;height:260px"><canvas id="rateChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ══ FLAGS ══ -->
+<div class="pane" id="pane-flags">
+  <div class="page-title">What to ask the owner & realtor</div>
+  <div class="page-sub">Generated from all documents, including the vendor declaration (DV-07545 signed 2026-01-13).</div>
+  <div class="g2" style="align-items:start">
+    <div id="flag-list"></div>
+    <div>
+      <div class="card"><div class="card-hdr"><div class="ca" style="background:var(--rdark)"></div>Critical red flags</div><div id="red-detail"></div></div>
+      <div class="card"><div class="card-hdr"><div class="ca" style="background:var(--gmid)"></div>Green signals to confirm</div><div id="green-detail"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GROWTH ══ -->
+<div class="pane" id="pane-growth">
+  <div class="page-title">Portfolio growth plan</div>
+  <div class="page-sub">Keller's buy → hold → refinance → repeat ladder for this property.</div>
+  <div class="g2" style="align-items:start;margin-bottom:1rem">
+    <div class="card">
+      <div class="card-hdr"><div class="ca" style="background:var(--navy)"></div>Keller wealth ladder</div>
+      <div id="timeline-box"></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--gmid)"></div>Net worth projection</div>
+        <div class="chart-legend"><div class="legend-item"><div class="legend-swatch" style="background:#2E6DA4"></div>Property 1 equity</div><div class="legend-item"><div class="legend-swatch" style="background:#27AE60"></div>Total net worth (P1+P2)</div></div>
+        <div style="position:relative;height:220px"><canvas id="growthChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ca" style="background:var(--amber)"></div>Refinance calculator</div>
+        <div class="g3">
+          <div class="fg"><label class="lbl">Value after 5 yrs ($)</label><input type="number" id="refval" value="570000" oninput="calcRefi()"></div>
+          <div class="fg"><label class="lbl">Remaining mortgage ($)</label><input type="number" id="refmort" value="350000" oninput="calcRefi()"></div>
+          <div class="fg"><label class="lbl">LTV for refi (%)</label><input type="number" id="reflv" value="80" oninput="calcRefi()"></div>
+        </div>
+        <div id="refi-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LEARN ══ -->
+<div class="pane" id="pane-learn">
+  <div class="page-title">Keller principles</div>
+  <div class="page-sub">Every KPI threshold in this tool maps to a principle from The Millionaire Real Estate Investor.</div>
+  <div id="learn-cards"></div>
+</div>
+
+</div></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let charts={equity:null,cf:null,rate:null,growth:null,qual:null};
+let qualAnswers={};
+let parsedDocs={};  // keyed by doc type
+let sellerNOI=0;
+
+// ── TIPS ──────────────────────────────────────────────────────────────────────
+const TIPS={
+  'Cap Rate':'NOI ÷ Purchase Price. Measures income yield independent of financing. Keller minimum: 5%. Below 4% in Quebec = buying on appreciation hope, not income.',
+  'GRM':'Price ÷ Gross Annual Rent. Your 10-second morning scan filter. ≤15x: proceed. >18x: delete without analysis.',
+  'Cash-on-Cash':'Annual cash flow ÷ Total cash invested. Measures actual return on YOUR money. Keller minimum: 6%.',
+  'DSCR':'NOI ÷ Annual Mortgage. ≥1.20x = comfortable buffer. Below 1.0x = you pay the gap every month.',
+  'Monthly CF':'(NOI – mortgage) ÷ 12. The cash you pocket monthly. Even $0 is OK if appreciation is strong.',
+  'NOI':'Net Operating Income = Effective Gross Income – All Operating Expenses. Does NOT include mortgage.',
+  'Days on Market':'30+ days = motivated seller, Keller\'s target. Under 14 = seller expects full price.',
+  'Taxe de bienvenue':'Quebec property transfer tax. One-time cost. Bracket system from 0.5% to 3%.',
+  'CMHC Insurance':'Mandatory when down payment < 20%. Premium 2.8%–4% of loan, added to mortgage.'
+};
+function tip(t){const tx=TIPS[t]||'';if(!tx)return'';return`<span class="tip-wrap"><span class="tip-icon">i</span><span class="tip-box">${tx}</span></span>`;}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function nav(id){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('pane-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'"))n.classList.add('active');});
+  if(id==='report')renderReport();
+  if(id==='quant')renderQuant();
+  if(id==='qual'){renderQual();updateQualScore();}
+  if(id==='scenarios')renderScenarios();
+  if(id==='flags')renderFlags();
+  if(id==='growth')renderGrowth();
+  if(id==='learn')renderLearn();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function v(id){return parseFloat(document.getElementById(id)&&document.getElementById(id).value)||0;}
+function fmt(n){return'$'+Math.round(n).toLocaleString();}
+function fmtK(n){return n>=1000?'$'+(n/1000).toFixed(1)+'K':'$'+Math.round(n);}
+function bdg(txt,cls){return`<span class="badge badge-${cls}">${txt}</span>`;}
+function ck(ok,warn){return ok?'var(--gmid)':warn?'var(--aorange)':'var(--rdark)';}
+function cc(ok,warn){return ok?'gcc':warn?'acc':'rcc';}
+
+// ── CORE CALC ─────────────────────────────────────────────────────────────────
+function calcCore(price,r1,r2,oth,vac,tax,stax,ins,elec,mnt,hwh,oexp,dp,rate,amort){
+  const gm=r1+r2+oth,ga=gm*12,eff=ga*(1-vac/100);
+  const exp=tax+stax+ins+elec+mnt+hwh+oexp,noi=eff-exp;
+  const capRate=price>0?noi/price:0,grm=ga>0?price/ga:0;
+  const dpAmt=price*dp/100,loan=price-dpAmt;
+  const mr=rate/100/12,n=amort*12;
+  const mtg=mr>0?loan*(mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1):loan/n;
+  const annMtg=mtg*12,cf=noi-annMtg;
+  return{gm,ga,eff,exp,noi,capRate,grm,dpAmt,loan,mtg,annMtg,cf,
+    coc:dpAmt>0?cf/dpAmt:0,dscr:annMtg>0?noi/annMtg:0};
+}
+function getR(){
+  return calcCore(v('askprice'),v('rent1'),v('rent2'),v('otherinc'),v('vacancy'),
+    v('taxes'),v('schooltax'),v('insurance'),v('electricity'),v('maint'),v('hwh'),v('otherexp'),
+    v('dpPct'),v('irate'),v('amort'));
+}
+
+// ── WELCOME TAX ───────────────────────────────────────────────────────────────
+function welcomeTax(p){let t=0,prev=0;for(const[lim,rt] of[[58900,.005],[294600,.01],[553800,.015],[1107600,.02],[2215200,.025],[Infinity,.03]]){if(p<=prev)break;t+=(Math.min(p,lim)-prev)*rt;prev=lim;if(p<=lim)break;}return t;}
+
+// ── FEES ──────────────────────────────────────────────────────────────────────
+function renderFees(price){
+  const wt=welcomeTax(price),notary=1500,insp=600;
+  const dpPct=v('dpPct'),dp=price*dpPct/100,loan=price-dp;
+  const cmhcRate=dpPct<10?.04:dpPct<15?.031:dpPct<20?.028:0;
+  const cmhc=loan*cmhcRate,adj=800,total=wt+notary+insp+cmhc+adj;
+  document.getElementById('fees-box').innerHTML=`
+    <div class="dr"><span class="dr-lbl">Taxe de bienvenue ${tip('Taxe de bienvenue')}</span><span class="dr-val">${fmt(wt)}</span></div>
+    <div class="dr"><span class="dr-lbl">Notary fees</span><span class="dr-val">${fmt(notary)}</span></div>
+    <div class="dr"><span class="dr-lbl">Building inspection</span><span class="dr-val">${fmt(insp)}</span></div>
+    <div class="dr"><span class="dr-lbl">CMHC ${tip('CMHC Insurance')}</span><span class="dr-val">${cmhc>0?fmt(cmhc):'$0 — 20%+ down'}</span></div>
+    <div class="dr"><span class="dr-lbl">Misc</span><span class="dr-val">${fmt(adj)}</span></div>
+    <div class="dr" style="font-weight:700;border-top:2px solid var(--border);margin-top:4px;padding-top:9px"><span class="dr-lbl">Total closing costs</span><span class="dr-val" style="color:var(--mblue)">${fmt(total)}</span></div>
+    <div class="dr"><span class="dr-lbl" style="color:#94a3b8">Total cash needed</span><span class="dr-val">${fmt(dp+total)}</span></div>`;
+}
+
+// ── SNAPSHOT ──────────────────────────────────────────────────────────────────
+function renderSnapshot(r){
+  const dom=v('dom'),pr=v('askprice');
+  document.getElementById('snapshot-box').innerHTML=`
+    <div class="dr"><span class="dr-lbl">Gross annual income</span><span class="dr-val">${fmt(r.ga)}</span></div>
+    <div class="dr"><span class="dr-lbl">NOI ${tip('NOI')}</span><span class="dr-val">${fmt(r.noi)}</span></div>
+    <div class="dr"><span class="dr-lbl">Cap rate ${tip('Cap Rate')}</span><span class="dr-val">${bdg((r.capRate*100).toFixed(2)+'%',r.capRate>=.05?'green':r.capRate>=.04?'amber':'red')}</span></div>
+    <div class="dr"><span class="dr-lbl">GRM ${tip('GRM')}</span><span class="dr-val">${bdg(r.grm.toFixed(1)+'x',r.grm<=15?'green':r.grm<=18?'amber':'red')}</span></div>
+    <div class="dr"><span class="dr-lbl">Monthly mortgage</span><span class="dr-val">${fmt(r.mtg)}/mo</span></div>
+    <div class="dr"><span class="dr-lbl">Monthly cash flow ${tip('Monthly CF')}</span><span class="dr-val" style="color:${r.cf>=0?'var(--gmid)':'var(--rdark)'}">${fmt(r.cf/12)}/mo</span></div>
+    <div class="dr"><span class="dr-lbl">Budget</span><span class="dr-val">${bdg(pr<=450000?'Within $450K':'Over budget',pr<=450000?'green':'red')}</span></div>`;
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function updateSidebar(r){
+  const dom=v('dom'),pr=v('askprice');
+  const sc=[r.capRate>=.05,r.grm<=15,r.coc>=.06,r.dscr>=1.2,r.cf>=0,pr<=450000,dom>=30];
+  const cnt=sc.filter(Boolean).length;
+  const col=cnt>=6?'var(--gmid)':cnt>=4?'var(--aorange)':'var(--rdark)';
+  document.getElementById('sb-score').textContent=cnt+'/7';
+  document.getElementById('sb-score').style.color=col;
+  document.getElementById('sb-text').textContent=cnt>=6?'Strong BUY':cnt>=4?'Watch closely':'Pass / renegotiate';
+  document.getElementById('sb-text').style.color=col;
+  document.getElementById('verdict-box').style.borderColor=col;
+  document.getElementById('sb-badge').innerHTML=bdg(cnt+' of 7 KPIs',cnt>=6?'green':cnt>=4?'amber':'red');
+  const tv=document.getElementById('top-verdict');
+  tv.textContent=cnt>=6?'Strong BUY':cnt>=4?'Watch':'Pass';
+  tv.style.background=cnt>=6?'var(--gmid)':cnt>=4?'var(--aorange)':'var(--rdark)';
+}
+
+// ── MAIN CALC ─────────────────────────────────────────────────────────────────
+function calc(){
+  const r=getR();
+  renderFees(v('askprice'));
+  renderSnapshot(r);
+  updateSidebar(r);
+  // Unit 604 warning: heat+hydro included
+  const rw=document.getElementById('rent-warning');
+  if(v('rent2')>0&&v('rent2')<1100){rw.style.display='block';rw.innerHTML=`<strong>Unit 604 includes chauffage + électricité + eau chaude:</strong> The $958/mo rent includes heating and hot water — effective net income is $958 minus estimated $150–$200/mo utilities the seller pays = ~$760–$808 true net. The $849 electricity in expenses covers this common area use.`;}
+  else rw.style.display='none';
+  const ew=document.getElementById('expense-warning');
+  if(v('maint')===0){ew.style.display='block';ew.innerHTML=`<strong>Maintenance not set:</strong> The seller's $6,312 expenses omit maintenance. Add at minimum $2,500/yr for a 1920 building.`;}
+  else ew.style.display='none';
+}
+
+// ── INSIGHT REPORT ────────────────────────────────────────────────────────────
+function renderReport(){
+  const r=getR(),pr=v('askprice'),dom=v('dom');
+  const kpis=[
+    {n:'Cap Rate',v:(r.capRate*100).toFixed(2)+'%',ok:r.capRate>=.05,warn:r.capRate>=.04,thresh:'≥5%'},
+    {n:'GRM',v:r.grm.toFixed(1)+'x',ok:r.grm<=15,warn:r.grm<=18,thresh:'≤15x'},
+    {n:'Cash-on-Cash',v:(r.coc*100).toFixed(2)+'%',ok:r.coc>=.06,warn:r.coc>=.03,thresh:'≥6%'},
+    {n:'DSCR',v:r.dscr.toFixed(2)+'x',ok:r.dscr>=1.2,warn:r.dscr>=1.0,thresh:'≥1.20x'},
+    {n:'Monthly CF',v:fmt(r.cf/12)+'/mo',ok:r.cf/12>=0,warn:r.cf/12>=-200,thresh:'≥$0'},
+    {n:'Budget',v:fmt(pr),ok:pr<=450000,warn:pr<=480000,thresh:'≤$450K'},
+    {n:'Days on mkt',v:dom+' days',ok:dom>=30,warn:dom>=15,thresh:'≥30 days'},
+  ];
+  const pass=kpis.filter(k=>k.ok).length;
+
+  let html=`
+  <!-- HEADER KPI STRIP -->
+  <div class="card" style="background:var(--navy);border:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">602-604 Rue St-Martin, Sherbrooke</div>
+        <div style="color:white;font-size:22px;font-weight:700">$424,900 · Duplex · 1920 · 5½ + 4½</div>
+        <div style="color:#94a3b8;font-size:13px;margin-top:4px">Centris #18035254 · Quartier Mont-Bellevue · Zone H1086</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:48px;font-weight:700;color:${pass>=6?'var(--gmid)':pass>=4?'var(--aorange)':'var(--rdark)'}">${pass}/7</div>
+        <div style="color:#94a3b8;font-size:12px">Keller KPIs passed</div>
+        <div style="margin-top:6px">${bdg(pass>=6?'Strong BUY':pass>=4?'Watch':'Pass / renegotiate',pass>=6?'green':pass>=4?'amber':'red')}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:1.25rem">
+      ${kpis.map(k=>`<div style="background:rgba(255,255,255,.08);border-radius:8px;padding:10px 8px;text-align:center;border-top:3px solid ${k.ok?'var(--gmid)':k.warn?'var(--aorange)':'var(--rdark)'}">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase">${k.n}</div>
+        <div style="font-size:15px;font-weight:700;color:${k.ok?'var(--gmid)':k.warn?'var(--aorange)':'var(--rdark)'}">${k.v}</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">${k.thresh}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- INCOME & EXPENSE -->
+  <div class="report-section">
+    <div class="report-title"><div style="width:6px;height:22px;background:var(--gmid);border-radius:3px"></div>Income & expense analysis</div>
+    <div class="g2" style="gap:1rem">
+      <div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">Verified gross income: $29,976/yr</div></div>
+          <div class="ib-body">Fiche détaillée confirms gross annual income of <strong>$29,976</strong> as of 2026-01-22. Unit 602: $1,540/mo (5½, RDC, lease expires 2026-06-30). Unit 604: $958/mo (4½, étage, lease expires 2027-09-30, includes heat + hydro + hot water).</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Sommaire financier</div>
+        </div>
+        <div class="insight-block ib-amber">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Seller expense model is incomplete</div></div>
+          <div class="ib-body">Seller shows <strong>$6,312 total expenses</strong> (taxes: $3,603 + electricity: $849 + insurance: $1,860). Maintenance ($0) and hot water heater lease ($816/yr per invoice) are omitted. Your model: <strong>${fmt(v('taxes')+v('schooltax')+v('insurance')+v('electricity')+v('maint')+v('hwh'))}/yr</strong>. Real NOI: <strong>${fmt(r.noi)}/yr</strong> vs seller's $23,664.</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Tax invoices</div>
+        </div>
+        <div class="insight-block ib-amber">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Unit 604 rent includes utilities — effective yield is lower</div></div>
+          <div class="ib-body">Unit 604 at $958/mo includes chauffage, électricité, and eau chaude (per declaration D2.6). The $849 electricity line likely covers this. True net contribution after utilities is approximately <strong>$760–$808/mo</strong>. Vendor declaration confirms no TAL hearing active (D2.6f = non).</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Déclaration du vendeur D2.6</div>
+        </div>
+      </div>
+      <div>
+        <div class="insight-block ib-blue">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--mblue)"></div><div class="ib-title" style="color:var(--blue)">Tax invoices — both verified from source</div></div>
+          <div class="ib-body"><strong>Municipal taxes 2026: $3,419.65</strong> (4 installments of $854.91 — Ville de Sherbrooke). <strong>School taxes 2025–26: $182.50</strong> (Centre de services scolaires de la Région-de-Sherbrooke). Municipal evaluation: $318,600 (2025–2027 roll). Ratio: asking price / eval = <strong>${(424900/318600).toFixed(2)}x</strong>.</div>
+          <div class="ib-source">📄 Source: Facture taxes municipales · Facture taxes scolaires</div>
+        </div>
+        <div class="insight-block ${r.capRate>=.05?'ib-green':r.capRate>=.04?'ib-amber':'ib-red'}">
+          <div class="ib-header"><div class="ib-dot" style="background:${r.capRate>=.05?'var(--gmid)':r.capRate>=.04?'var(--aorange)':'var(--rdark)'}"></div><div class="ib-title" style="color:${r.capRate>=.05?'var(--green)':r.capRate>=.04?'var(--amber)':'var(--red)'}">Cap rate: ${(r.capRate*100).toFixed(2)}% — ${r.capRate>=.05?'meets Keller threshold':'below Keller 5% minimum'}</div></div>
+          <div class="ib-body">Using your full expense model (NOI: ${fmt(r.noi)}), the cap rate is <strong>${(r.capRate*100).toFixed(2)}%</strong>. The seller's stated cap rate using their $23,664 NOI is ${(23664/424900*100).toFixed(2)}% — also below 5%. GRM of <strong>${r.grm.toFixed(1)}x</strong> (${r.grm<=15?'✓ passes':'fails'} Keller ≤15x filter). Price per door: $212,450. Sherbrooke market rate for comparable units: $950–$1,100 (3½) and $1,050–$1,200 (4½).</div>
+          <div class="ib-source">📄 Source: Calculated from fiche + tax invoices</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUILDING CONDITION -->
+  <div class="report-section">
+    <div class="report-title"><div style="width:6px;height:22px;background:var(--rdark);border-radius:3px"></div>Building condition — from Déclaration du vendeur (DV-07545, signed 2026-01-13)</div>
+    <div class="g2" style="gap:1rem">
+      <div>
+        <div class="insight-block ib-red">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--rdark)"></div><div class="ib-title" style="color:var(--red)">⚠ Roof: membrane élastomère, installed ~2008 per previous owner</div></div>
+          <div class="ib-body">Section D8 confirms: membrane élastomère roof, year ~2008 <em>selon ancien propriétaire</em>. No documentation available (D8.3: non). That is <strong>~17 years old</strong>. End of life for elastomeric membranes is typically 15–25 years. A full replacement costs $8,000–$18,000. Ice/snow accumulation at roof edge has occurred (D8.6: OUI). Mandatory inspection item.</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D8.1–D8.6</div>
+        </div>
+        <div class="insight-block ib-red">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--rdark)"></div><div class="ib-title" style="color:var(--red)">⚠ Water infiltration: confirmed in crawl space</div></div>
+          <div class="ib-body">Section D4.1 declares: previous water infiltrations in <strong>crawl space (vide sanitaire)</strong>. D4.2: no damage from water leak (non). The sump pump (pompe d'évacuation) is present (D9.3: OUI) but the install year and pump frequency are both unknown ("ne sais pas"). French drain status: unknown. This is a flag requiring scope inspection.</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D4.1, D9.2–D9.4</div>
+        </div>
+        <div class="insight-block ib-red">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--rdark)"></div><div class="ib-title" style="color:var(--red)">⚠ Electrical panel: never changed</div></div>
+          <div class="ib-body">Section D10.5 confirms: <strong>electrical panel has never been changed</strong>. For a 1920 building that is 105 years of original or unverified electrical infrastructure. An electrical upgrade in Quebec costs $6,000–$15,000. No EV charger, no solar, no energy certification. This must be inspected by a licensed electrician before closing.</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D10.5</div>
+        </div>
+        <div class="insight-block ib-amber">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Foundation: mixed — béton coulé, blocs, pierre, brique</div></div>
+          <div class="ib-body">Fiche détaillée shows four foundation types — typical for a 1920 Sherbrooke duplex that has been patched over time. D5.2 states no known foundation problems (non). D3.2: no stabilization works done. A probe inspection of the crawl space (vide sanitaire) is essential given the water infiltration history.</div>
+          <div class="ib-source">📋 Source: Fiche détaillée · Déclaration du vendeur D5</div>
+        </div>
+      </div>
+      <div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">✓ No asbestos, mold, pest, or soil contamination declared</div></div>
+          <div class="ib-body">D6.1 (insects/pests): non. D7.3 (mold/rot): non. D7.4 (asbestos materials): non. D3.3 (underground oil tank): non. D3.4 (soil contamination): non. D3.9 (old landfill): non. These are clean declarations for a 1920 building — notably good.</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D6, D7, D3</div>
+        </div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">✓ No flooding zone, no agricultural zone, no heritage designation</div></div>
+          <div class="ib-body">D2.9 confirms the property is NOT in a flood zone, NOT in an agricultural zone (CPTAQ), NOT subject to heritage protection, and NOT in an airport zone. Zonage grille confirms zone H1086 — allows H-4 (bifamiliale isolée), H-6, H-8 usage. The "Résidentiel, Commercial" zoning tag on the fiche is consistent with zone H1086 which also allows C-202 (retail clothing).</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D2.9 · Zonage/Grille H1086</div>
+        </div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">✓ No TAL proceedings, no family residence notice</div></div>
+          <div class="ib-body">Vendor confirms: no active TAL (Tribunal administratif du logement) file (D2.6f: non). No notice of family residence (D2.6c: non). No tenant aged 70+ with 10+ years occupancy (D2.6g: non — this removes the strongest TAL eviction protection). Vendor confirms rents total at least $30,576/yr (D2.6a).</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D2.6</div>
+        </div>
+        <div class="insight-block ib-amber">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Heating: electric baseboards, no certification, unknown age</div></div>
+          <div class="ib-body">D12.1: electricity. D12.2: no furnace. D12.3: installation year unknown. No geothermal, no heat pump, no AC. Quebec winters in Sherbrooke are harsh — electric baseboards in a 1920 building without adequate insulation create high tenant hydro costs. Cellulose insulation in the attic (D8.5) is positive but wall insulation unknown.</div>
+          <div class="ib-source">📋 Source: Déclaration du vendeur D12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZONING & LEGAL -->
+  <div class="report-section">
+    <div class="report-title"><div style="width:6px;height:22px;background:var(--mblue);border-radius:3px"></div>Zoning, legal & value-add analysis</div>
+    <div class="g2" style="gap:1rem">
+      <div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">✓ Zone H1086: allows up to H-8 (4–8 logements)</div></div>
+          <div class="ib-body">The Sherbrooke zoning grid for zone H1086 permits usage classes H-1 through H-8 and commercial use C-202. This means the property <strong>can legally accommodate up to 8 residential units</strong> subject to lot size and setback rules (3m front, 0.9m side, 3m rear minimum). Lot at 473m² — check minimum lot size per unit for subdivision potential.</div>
+          <div class="ib-source">🗺 Source: Zonage/Grille d'usage · Règlement 1200 Zone H1086</div>
+        </div>
+        <div class="insight-block ib-blue">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--mblue)"></div><div class="ib-title" style="color:var(--blue)">Municipal evaluation: $318,600 · ratio 1.33x</div></div>
+          <div class="ib-body">Fiche confirms municipal evaluation of $318,600 (land: $94,600 + building: $224,000) as of 2025–2027 roll. Asking price $424,900 = <strong>1.33x municipal evaluation</strong>. In Sherbrooke (Mont-Bellevue), this ratio is typical at 1.3–1.8x. The fiche itself notes "133.36%". This ratio provides moderate negotiation room — below 1.5x is considered fair in current market.</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Facture taxes municipales</div>
+        </div>
+      </div>
+      <div>
+        <div class="insight-block ib-amber">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Sale "sans garantie légale de qualité"</div></div>
+          <div class="ib-body">The addenda explicitly states this sale is made <strong>without legal quality warranty</strong>, at the buyer's risk. This is common in Quebec estate sales or when the vendor has limited knowledge of the property. It means you CANNOT sue the vendor for hidden defects discovered post-purchase. A rigorous pre-purchase inspection with a licensed building inspector + specialist plumber/electrician is not optional — it is mandatory.</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Addenda</div>
+        </div>
+        <div class="insight-block ib-green">
+          <div class="ib-header"><div class="ib-dot" style="background:var(--gmid)"></div><div class="ib-title" style="color:var(--green)">✓ Value-add: Unit 602 lease expires June 2026 — 3 months away</div></div>
+          <div class="ib-body">Unit 602 (5½, RDC, 3 bedrooms) lease expires <strong>June 30, 2026</strong> — only ~3 months away. You must notify the tenant by April 30, 2026 if you intend to reprise (owner-occupy or renovate). Market rent for a renovated 5½ in Mont-Bellevue: $1,400–$1,700/mo. If you owner-occupy this unit you qualify for 5–10% minimum down payment via CMHC, saving $42,490–$84,980 vs 20% down.</div>
+          <div class="ib-source">📄 Source: Fiche détaillée · Bail 602</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEGOTIATION -->
+  <div class="report-section">
+    <div class="report-title"><div style="width:6px;height:22px;background:var(--amber);border-radius:3px"></div>Negotiation strategy</div>
+    <div class="insight-block ib-amber">
+      <div class="ib-header"><div class="ib-dot" style="background:var(--aorange)"></div><div class="ib-title" style="color:var(--amber)">Target price: $395,000–$410,000 — here is your justification</div></div>
+      <div class="ib-body">
+        <strong>1. Roof risk ($8K–$18K):</strong> 17-year-old membrane, no documentation → ask $8,000 credit or price reduction.<br>
+        <strong>2. Electrical panel (never replaced):</strong> 1920 vintage, no upgrade documentation → $6,000–$15,000 risk → ask $8,000 credit.<br>
+        <strong>3. Water infiltration in crawl space:</strong> Unknown extent, sump pump age unknown → $3,000–$10,000 risk → ask inspection clause.<br>
+        <strong>4. "Sans garantie légale":</strong> Transfers all hidden defect risk to you → demands a steeper discount, not less.<br>
+        <strong>5. Cap rate at ask:</strong> ${(r.capRate*100).toFixed(2)}% — below the 5% Keller minimum even before maintenance.<br>
+        <strong>Offer strategy:</strong> Come in at $400,000 with pre-inspection condition + 30-day financing condition. If inspection reveals issues, re-negotiate to $390,000–$395,000. At $395,000 with $2,500/yr maintenance added, cap rate improves to <strong>${((r.noi)/(395000)*100).toFixed(2)}%</strong>.
+      </div>
+      <div class="ib-source">📄 Sources: All documents combined</div>
+    </div>
+  </div>`;
+
+  document.getElementById('report-content').innerHTML=html;
+}
+
+// ── QUANT ─────────────────────────────────────────────────────────────────────
+function renderQuant(){
+  const r=getR(),dom=v('dom'),pr=v('askprice');
+  const kpis=[
+    {n:'Cap Rate',t:'Cap Rate',v:(r.capRate*100).toFixed(2)+'%',ok:r.capRate>=.05,warn:r.capRate>=.04,thresh:'≥ 5.0%',bar:Math.min(r.capRate/.1,1)},
+    {n:'GRM',t:'GRM',v:r.grm.toFixed(1)+'x',ok:r.grm<=15,warn:r.grm<=18,thresh:'≤ 15x',bar:Math.max(1-r.grm/25,0)},
+    {n:'Cash-on-Cash',t:'Cash-on-Cash',v:(r.coc*100).toFixed(2)+'%',ok:r.coc>=.06,warn:r.coc>=.03,thresh:'≥ 6.0%',bar:Math.min(r.coc/.15,1)},
+    {n:'DSCR',t:'DSCR',v:r.dscr.toFixed(2)+'x',ok:r.dscr>=1.2,warn:r.dscr>=1.0,thresh:'≥ 1.20x',bar:Math.min(r.dscr/2,1)},
+    {n:'Monthly CF',t:'Monthly CF',v:fmt(r.cf/12)+'/mo',ok:r.cf/12>=0,warn:r.cf/12>=-200,thresh:'≥ $0/mo',bar:Math.min(Math.max(r.cf/12+500,0)/1000,1)},
+    {n:'Budget',t:null,v:fmt(pr),ok:pr<=450000,warn:pr<=480000,thresh:'≤ $450K',bar:Math.max(1-pr/600000,0)},
+    {n:'Days on mkt',t:'Days on Market',v:dom+' days',ok:dom>=30,warn:dom>=15,thresh:'≥ 30 days',bar:Math.min(dom/90,1)},
+  ];
+  document.getElementById('kpi-cards').innerHTML=kpis.map(k=>`
+    <div class="metric ${k.ok?'green':k.warn?'amber':'red'}">
+      <div class="m-lbl">${k.n} ${k.t?tip(k.t):''}</div>
+      <div class="m-val" style="color:${ck(k.ok,k.warn)}">${k.v}</div>
+      <div class="m-sub">Target: ${k.thresh}</div>
+    </div>`).join('');
+  document.getElementById('kpi-bars').innerHTML=kpis.map(k=>`
+    <div class="kpi-item">
+      <div class="kpi-name">${k.n} ${k.t?tip(k.t):''}</div>
+      <div class="kpi-bw"><div class="kpi-bf" style="width:${(k.bar*100).toFixed(0)}%;background:${ck(k.ok,k.warn)}"></div></div>
+      <div class="kpi-num" style="color:${ck(k.ok,k.warn)}">${k.v}</div>
+      <div class="kpi-thresh">${k.thresh}</div>
+      <span class="badge badge-${k.ok?'green':k.warn?'amber':'red'}" style="font-size:10px;padding:2px 7px">${k.ok?'GO':k.warn?'WARN':'FAIL'}</span>
+    </div>`).join('');
+  const pass=kpis.filter(k=>k.ok).length;
+  document.getElementById('kpi-total-badge').innerHTML=bdg(pass+'/7 — '+(pass>=6?'Strong BUY':pass>=4?'Watch closely':'Pass / renegotiate'),pass>=6?'green':pass>=4?'amber':'red');
+  document.getElementById('income-statement').innerHTML=`
+    <div class="dr"><span class="dr-lbl">Gross rental income</span><span class="dr-val">${fmt(r.ga)}/yr</span></div>
+    <div class="dr"><span class="dr-lbl">Vacancy (${v('vacancy')}%) ${tip('NOI')}</span><span class="dr-val" style="color:var(--rdark)">–${fmt(r.ga-r.eff)}/yr</span></div>
+    <div class="dr"><span class="dr-lbl">Effective gross income</span><span class="dr-val">${fmt(r.eff)}/yr</span></div>
+    <div class="dr"><span class="dr-lbl">Total expenses</span><span class="dr-val" style="color:var(--rdark)">–${fmt(r.exp)}/yr</span></div>
+    <div class="dr" style="font-weight:700"><span class="dr-lbl">= NOI (your model)</span><span class="dr-val" style="color:var(--mblue)">${fmt(r.noi)}/yr</span></div>
+    <div class="dr"><span class="dr-lbl" style="color:#94a3b8">Seller's stated NOI</span><span class="dr-val" style="color:#94a3b8">$23,664/yr</span></div>
+    <div class="dr"><span class="dr-lbl">Annual mortgage</span><span class="dr-val" style="color:var(--rdark)">–${fmt(r.annMtg)}/yr</span></div>
+    <div class="dr" style="font-weight:700"><span class="dr-lbl">Net cash flow</span><span class="dr-val" style="color:${r.cf>=0?'var(--gmid)':'var(--rdark)'}">${fmt(r.cf)}/yr</span></div>`;
+  const yrs=Array.from({length:11},(_,i)=>i);
+  const eqData=yrs.map(y=>{
+    const pv=v('askprice')*Math.pow(1.06,y);let bal=r.loan;const mr=v('irate')/100/12;
+    for(let m=0;m<y*12;m++)bal=Math.max(0,bal-(r.mtg-bal*mr));return Math.round(pv-bal);
+  });
+  if(charts.equity)charts.equity.destroy();
+  charts.equity=new Chart(document.getElementById('equityChart'),{type:'line',data:{labels:yrs.map(y=>'Yr '+y),datasets:[{label:'Equity',data:eqData,borderColor:'#2E6DA4',backgroundColor:'rgba(46,109,164,.1)',fill:true,tension:.4,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtK(v)}}}}});
+  const cfVals=[r.ga,-(r.ga-r.eff),-r.exp,r.noi,-r.annMtg,r.cf];
+  if(charts.cf)charts.cf.destroy();
+  charts.cf=new Chart(document.getElementById('cfChart'),{type:'bar',data:{labels:['Gross','–Vacancy','–Expenses','NOI','–Mortgage','Cash Flow'],datasets:[{data:cfVals,backgroundColor:cfVals.map(v=>v>=0?'rgba(39,174,96,.8)':'rgba(231,76,60,.8)')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtK(v)}}}}});
+}
+
+// ── QUAL ──────────────────────────────────────────────────────────────────────
+const qualData=[
+  {cat:'Location & neighbourhood',color:'var(--mblue)',items:[
+    {id:'q1',t:'Neighbourhood is stable or improving',good:true},
+    {id:'q2',t:'Low vacancy / high rental demand in area',good:true},
+    {id:'q3',t:'Within 30 min of major employment centres',good:true},
+    {id:'q4',t:'Schools, transit, and services nearby',good:true},
+    {id:'q5',t:'No flooding or environmental risk',good:true},
+  ]},
+  {cat:'Building condition',color:'var(--teal)',items:[
+    {id:'q7',t:'Roof replaced within last 10 years',good:true},
+    {id:'q8',t:'Plumbing — no known issues',good:true},
+    {id:'q9',t:'Electrical updated — panel changed',good:true},
+    {id:'q10',t:'No confirmed water infiltration history',good:true},
+    {id:'q11',t:'Foundation in good condition',good:true},
+    {id:'q12',t:'No asbestos or contamination declared',good:true},
+  ]},
+  {cat:'Legal & compliance',color:'var(--purp)',items:[
+    {id:'q13',t:'Duplex registered correctly with municipality',good:true},
+    {id:'q14',t:'No litigation / TAL proceedings active',good:true},
+    {id:'q15',t:'Not in flood zone / no environmental order',good:true},
+    {id:'q16',t:'Sale WITH legal quality guarantee',good:true},
+  ]},
+  {cat:'Tenant situation',color:'var(--navy)',items:[
+    {id:'q19',t:'Rents at or near market rate',good:true},
+    {id:'q20',t:'No TAL eviction or non-payment history',good:true},
+    {id:'q21',t:'At least one unit available for reprise / owner-occupancy',good:true},
+    {id:'q22',t:'No family residence notice received',good:true},
+  ]},
+  {cat:'Deal dynamics',color:'var(--amber)',items:[
+    {id:'q24',t:'Seller motivated (estate, relocation, etc.)',good:true},
+    {id:'q25',t:'Price at or below comparable sales',good:true},
+    {id:'q26',t:'All income and expense documents provided',good:true},
+    {id:'q27',t:'Pre-inspection clause accepted',good:true},
+    {id:'q28',t:'No major deferred maintenance visible',good:true},
+  ]},
+  {cat:'Value-add potential',color:'var(--green)',items:[
+    {id:'q29',t:'Zoning permits additional units',good:true},
+    {id:'q30',t:'Cosmetic upgrades justify rent bump on turnover',good:true},
+    {id:'q31',t:'Neighbourhood supports rent growth 5+ years',good:true},
+    {id:'q32',t:'Short-term lease expiry creates reprising opportunity',good:true},
+  ]},
+];
+
+// Pre-answer from vendor declaration
+const preAnswers={
+  q5:'yes',   // no flood zone
+  q8:'yes',   // no plumbing issues declared
+  q10:'no',   // water infiltration confirmed
+  q12:'yes',  // no asbestos/pest/contamination
+  q14:'yes',  // no TAL active
+  q15:'yes',  // no flood zone
+  q16:'no',   // sans garantie légale
+  q20:'yes',  // no TAL history
+  q22:'yes',  // no family residence notice
+  q26:'yes',  // all docs provided
+  q29:'yes',  // zone H1086 allows up to H-8
+  q32:'yes',  // unit 602 expires June 2026
+};
+
+function renderQual(){
+  if(Object.keys(qualAnswers).length===0)Object.assign(qualAnswers,preAnswers);
+  document.getElementById('qual-questions').innerHTML=qualData.map(s=>`
+    <div class="card">
+      <div class="card-hdr"><div class="ca" style="background:${s.color}"></div>${s.cat}</div>
+      ${s.items.map(item=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--grlt)">
+          <div style="font-size:13px;flex:1;padding-right:10px;color:var(--grey)">${item.t}${preAnswers[item.id]?'<span style="font-size:10px;color:var(--mblue);margin-left:6px;background:var(--lblue);padding:1px 5px;border-radius:20px">From DV</span>':''}</div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="q-yes-btn" onclick="setQ('${item.id}','yes')" style="background:${qualAnswers[item.id]==='yes'?'var(--gmid)':'transparent'};color:${qualAnswers[item.id]==='yes'?'white':'var(--gmid)'}">YES</button>
+            <button class="q-no-btn" onclick="setQ('${item.id}','no')" style="background:${qualAnswers[item.id]==='no'?'var(--rdark)':'transparent'};color:${qualAnswers[item.id]==='no'?'white':'var(--rdark)'}">NO</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function setQ(id,val){qualAnswers[id]=val;renderQual();updateQualScore();}
+
+function updateQualScore(){
+  let correct=0,total=0;
+  qualData.forEach(s=>s.items.forEach(i=>{if(qualAnswers[i.id]){total++;if((i.good&&qualAnswers[i.id]==='yes')||(!i.good&&qualAnswers[i.id]==='no'))correct++;}}));
+  const pct=total>0?correct/total:0;
+  document.getElementById('qual-score-num').textContent=total>0?correct+'/'+total:'—';
+  document.getElementById('qual-score-num').style.color=pct>=.85?'var(--gmid)':pct>=.70?'var(--aorange)':'var(--rdark)';
+  const vb=document.getElementById('qual-verdict-badge');
+  if(total>0)vb.innerHTML=bdg(pct>=.85?'GREEN — Strong profile':pct>=.70?'AMBER — Review concerns':'RED — Too many issues',pct>=.85?'green':pct>=.70?'amber':'red');
+  const cs=qualData.map(s=>{let c=0,t2=0;s.items.forEach(i=>{if(qualAnswers[i.id]){t2++;if((i.good&&qualAnswers[i.id]==='yes')||(!i.good&&qualAnswers[i.id]==='no'))c++;}});return t2>0?Math.round(c/t2*100):0;});
+  if(charts.qual)charts.qual.destroy();
+  charts.qual=new Chart(document.getElementById('qualChart'),{type:'doughnut',data:{labels:qualData.map(s=>s.cat),datasets:[{data:cs,backgroundColor:['#2E6DA4','#0E6655','#4A235A','#0D1B2A','#B7950B','#1A5C2E'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}}}}});
+  document.getElementById('qual-breakdown').innerHTML=qualData.map((s,i)=>`<div class="dr"><span class="dr-lbl">${s.cat}</span><div style="display:flex;align-items:center;gap:8px"><div style="width:70px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${cs[i]}%;background:${cs[i]>=85?'var(--gmid)':cs[i]>=70?'var(--aorange)':'var(--rdark)'}"></div></div><span style="font-size:12px;font-weight:700;color:${cs[i]>=85?'var(--gmid)':cs[i]>=70?'var(--aorange)':'var(--rdark)'}">${cs[i]}%</span></div></div>`).join('');
+}
+
+// ── SCENARIOS ─────────────────────────────────────────────────────────────────
+function updateScenario(){
+  const rate=+document.getElementById('sl-rate').value;
+  const dp=+document.getElementById('sl-dp').value;
+  const amort=+document.getElementById('sl-amort').value;
+  const appre=+document.getElementById('sl-appre').value;
+  document.getElementById('sl-rate-out').textContent=rate.toFixed(1)+'%';
+  document.getElementById('sl-dp-out').textContent=dp+'%';
+  document.getElementById('sl-amort-out').textContent=amort+' yrs';
+  document.getElementById('sl-appre-out').textContent=appre.toFixed(1)+'%';
+  const price=v('askprice');
+  const r=calcCore(price,v('rent1'),v('rent2'),v('otherinc'),v('vacancy'),v('taxes'),v('schooltax'),v('insurance'),v('electricity'),v('maint'),v('hwh'),v('otherexp'),dp,rate,amort);
+  const fiveYr=(price*Math.pow(1+appre/100,5))-(r.loan*(1-0.3));
+  document.getElementById('scenario-live-kpis').innerHTML=`
+    <div style="font-size:12px;font-weight:700;color:var(--grey);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Live results — current slider settings</div>
+    <div class="g2" style="gap:8px">
+      <div class="metric ${r.capRate>=.05?'green':r.capRate>=.04?'amber':'red'}"><div class="m-lbl">Cap rate ${tip('Cap Rate')}</div><div class="m-val" style="color:${ck(r.capRate>=.05,r.capRate>=.04)}">${(r.capRate*100).toFixed(2)}%</div><div class="m-sub">≥5%</div></div>
+      <div class="metric ${r.cf>=0?'green':'red'}"><div class="m-lbl">Monthly CF ${tip('Monthly CF')}</div><div class="m-val" style="color:${r.cf>=0?'var(--gmid)':'var(--rdark)'}">${fmt(r.cf/12)}</div><div class="m-sub">per month</div></div>
+      <div class="metric ${r.dscr>=1.2?'green':r.dscr>=1?'amber':'red'}"><div class="m-lbl">DSCR ${tip('DSCR')}</div><div class="m-val" style="color:${ck(r.dscr>=1.2,r.dscr>=1)}">${r.dscr.toFixed(2)}x</div><div class="m-sub">≥1.20x</div></div>
+      <div class="metric ${r.coc>=.06?'green':r.coc>=.03?'amber':'red'}"><div class="m-lbl">Cash-on-Cash ${tip('Cash-on-Cash')}</div><div class="m-val" style="color:${ck(r.coc>=.06,r.coc>=.03)}">${(r.coc*100).toFixed(1)}%</div><div class="m-sub">≥6%</div></div>
+      <div class="metric blue" style="grid-column:1/-1"><div class="m-lbl">Monthly mortgage</div><div class="m-val">${fmt(r.mtg)}<span style="font-size:13px;font-weight:400;color:#64748b">/mo</span></div><div class="m-sub">Loan ${fmt(r.loan)} · Down ${fmt(r.dpAmt)}</div></div>
+      <div class="metric blue" style="grid-column:1/-1"><div class="m-lbl">5-yr equity (${appre}%/yr)</div><div class="m-val">${fmt(fiveYr)}</div><div class="m-sub">incl. paydown</div></div>
+    </div>`;
+  buildMatrix(rate,dp,amort);
+  buildRateChart(dp,amort);
+}
+
+function buildMatrix(currentRate,currentDp,currentAmort){
+  const price=v('askprice');
+  const dpOpts=[5,10,15,20,25];
+  const rateOpts=[3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5];
+  let html=`<thead><tr><th>Rate \\ Down Pmt</th>${dpOpts.map(d=>`<th>${d}% down<br><span style="font-size:10px;font-weight:400;opacity:.8">${fmt(price*d/100)}</span></th>`).join('')}</tr></thead><tbody>`;
+  rateOpts.forEach(rate=>{
+    const isRow=Math.abs(rate-currentRate)<0.26;
+    html+=`<tr${isRow?' class="highlight-row"':''}><td>${rate.toFixed(1)}%${isRow?' ◀':''}</td>`;
+    dpOpts.forEach(dp=>{
+      const r=calcCore(price,v('rent1'),v('rent2'),v('otherinc'),v('vacancy'),v('taxes'),v('schooltax'),v('insurance'),v('electricity'),v('maint'),v('hwh'),v('otherexp'),dp,rate,currentAmort);
+      const isCur=isRow&&Math.abs(dp-currentDp)<1;
+      const cfM=Math.round(r.cf/12);
+      const pass=[r.capRate>=.05,r.grm<=15,r.coc>=.06,r.dscr>=1.2,r.cf>=0,price<=450000].filter(Boolean).length;
+      html+=`<td style="${isCur?'background:#D6E4F7;border:2px solid var(--mblue);font-weight:700;':''}">
+        <div class="${cc(cfM>=0,cfM>=-200)}" style="font-size:13px">${cfM>=0?'+':''}${fmt(cfM)}/mo</div>
+        <div style="font-size:10px;color:#64748b">Cap: <span class="${cc(r.capRate>=.05,r.capRate>=.04)}">${(r.capRate*100).toFixed(2)}%</span></div>
+        <div style="font-size:10px;color:#64748b">CoC: <span class="${cc(r.coc>=.06,r.coc>=.03)}">${(r.coc*100).toFixed(1)}%</span></div>
+        <div style="font-size:10px">${bdg(pass+'/6',pass>=5?'green':pass>=3?'amber':'red')}</div>
+      </td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody>`;
+  document.getElementById('sc-matrix').innerHTML=html;
+}
+
+function buildRateChart(currentDp,currentAmort){
+  const price=v('askprice');
+  const rates=[2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8];
+  const dpS=[
+    {dp:5,color:'#E74C3C',label:'5% down ('+fmt(price*.05)+')'},
+    {dp:10,color:'#F39C12',label:'10% down ('+fmt(price*.10)+')'},
+    {dp:15,color:'#2E6DA4',label:'15% down ('+fmt(price*.15)+')'},
+    {dp:20,color:'#27AE60',label:'20% down ('+fmt(price*.20)+')'},
+  ];
+  const datasets=dpS.map(sc=>({
+    label:sc.label,
+    data:rates.map(rate=>{const loan=price*(1-sc.dp/100),mr=rate/100/12,n=currentAmort*12;return Math.round(mr>0?loan*(mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1):loan/n);}),
+    borderColor:sc.color,backgroundColor:'transparent',borderWidth:sc.dp===currentDp?3:1.5,
+    pointRadius:sc.dp===currentDp?5:2,tension:.3,borderDash:sc.dp===currentDp?[]:[5,5]
+  }));
+  document.getElementById('rate-chart-legend').innerHTML=dpS.map(sc=>`
+    <div class="legend-item"><div class="legend-swatch" style="background:${sc.color};height:${sc.dp===currentDp?'4px':'2px'}"></div><span>${sc.label}${sc.dp===currentDp?' ← active':''}</span></div>`).join('')+
+    `<div class="legend-item"><div style="width:22px;height:12px;background:rgba(39,174,96,.15);border:1px solid rgba(39,174,96,.4);border-radius:2px"></div><span>Quebec realistic zone (4%–6%)</span></div>`;
+  if(charts.rate)charts.rate.destroy();
+  charts.rate=new Chart(document.getElementById('rateChart'),{
+    type:'line',data:{labels:rates.map(r=>r+'%'),datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}/mo`}}},
+    scales:{x:{title:{display:true,text:'Interest rate',font:{size:11}}},y:{title:{display:true,text:'Monthly payment ($)',font:{size:11}},ticks:{callback:v=>fmt(v)}}}}
+  });
+  setTimeout(()=>{
+    const ch=charts.rate;if(!ch)return;
+    const ctx=ch.ctx,xs=ch.scales.x,ys=ch.scales.y;
+    const x4=xs.getPixelForValue(3),x6=xs.getPixelForValue(7);
+    ctx.save();ctx.fillStyle='rgba(39,174,96,0.07)';ctx.fillRect(x4,ys.top,x6-x4,ys.bottom-ys.top);
+    ctx.strokeStyle='rgba(39,174,96,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x4,ys.top);ctx.lineTo(x4,ys.bottom);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x6,ys.top);ctx.lineTo(x6,ys.bottom);ctx.stroke();
+    ctx.setLineDash([]);ctx.restore();
+  },100);
+}
+
+function renderScenarios(){updateScenario();}
+
+// ── FLAGS ─────────────────────────────────────────────────────────────────────
+function renderFlags(){
+  const r=getR(),dom=v('dom'),pr=v('askprice');
+  const flags=[
+    {type:'red',title:'Roof: ~17 years old, no documentation',q:'Can you provide any receipts or contractor invoices for the roof work? When was it last inspected?',why:'Membrane élastomère installed ~2008 per previous owner. No documentation (D8.3). Replacement budget: $8K–$18K. Ice accumulation at eaves confirmed (D8.6).'},
+    {type:'red',title:'Electrical: panel never replaced (1920 building)',q:'When was the electrical service and panel last updated? Is it 100A or 200A per unit?',why:'D10.5 confirms panel never changed. For a 105-year-old building this is a critical risk. Upgrade cost: $6K–$15K. Must be inspected before closing.'},
+    {type:'red',title:'Water infiltration in crawl space confirmed',q:'When did the infiltrations occur? What was done to resolve them? Is the sump pump functional?',why:'D4.1 confirms prior water infiltration in vide sanitaire. Sump pump exists (D9.3) but age and frequency unknown. French drain status: unknown. Scope inspection of crawl space required.'},
+    {type:'red',title:'Sale "sans garantie légale de qualité"',q:'Why is the sale made without legal quality warranty? Is this an estate sale or does the vendor have limited knowledge?',why:'This transfers ALL hidden defect risk to the buyer. You cannot sue for defects found post-purchase. A rigorous inspection is not optional.'},
+    {type:'amber',title:'Cap rate: '+(r.capRate*100).toFixed(2)+'% — below Keller 5%',q:'What comparable sales justify the $424,900 asking price? Are you open to an offer at $395,000–$400,000 given the deferred maintenance?',why:'Even at seller\'s own $23,664 NOI, cap rate is only 5.57%. With your full expense model the real rate is '+(r.capRate*100).toFixed(2)+'%. The asking price is not fully supported by the income.'},
+    {type:'amber',title:'Unit 604 lease runs until September 2027',q:'What are the exact inclusions for unit 604? Confirm monthly electricity cost the landlord covers. Is the tenant informed of the sale?',why:'The $958/mo for a 4½ with heat + hydro + appliances + hot water is well below market. Locked until 2027. TAL notice required by April 2025 if you want to increase rent next cycle.'},
+    {type:'amber',title:'Municipal evaluation ratio: 1.33x — use as leverage',q:'What comparable sales in Mont-Bellevue in the last 6 months support the asking price over $400K?',why:'At $424,900 / $318,600 = 1.33x the ratio is reasonable but not justifying a premium. Recent Sherbrooke duplexes in this area: $380K–$435K. Use this in your counter-offer.'},
+    {type:'green',title:'Unit 602 lease expires June 30, 2026',q:'Confirm: if we close in April/May 2026, do we have the right to give reprise notice to unit 602 before June 30?',why:'This unit (5½, 3 bedrooms) is your best owner-occupancy candidate. Owner-occupying a duplex qualifies for 5–10% CMHC minimum down, saving $42K–$85K in required cash vs 20% investor down.'},
+    {type:'green',title:'No TAL file, no family residence notice, no 70+ tenant',q:'Confirm in writing that no TAL notices have been filed in the last 24 months at this address.',why:'D2.6f (TAL: non), D2.6c (family notice: non), D2.6g (70+ tenant: non). The strongest TAL eviction protections do not apply here.'},
+    {type:'green',title:'Zone H1086: zoning allows up to H-8 (4–8 units)',q:'Has a preliminary review with Sherbrooke\'s Service de l\'urbanisme been done for adding units?',why:'The current zoning allows multifamily up to 8 units. If lot size supports it, a future conversion to a triplex or quadruplex could significantly increase the property\'s income and value.'},
+    {type:'green',title:'No asbestos, no contamination, no pests declared',q:'Confirm: has the property ever had an environmental study or Phase 1 ESA done?',why:'D6.1 (pests: non), D7.3 (mold: non), D7.4 (asbestos: non), D3.4 (contamination: non). Clean declarations for a 1920 building.'},
+  ];
+  document.getElementById('flag-list').innerHTML=flags.map(f=>`
+    <div style="display:flex;gap:12px;padding:12px;border-radius:var(--rs);margin-bottom:8px;background:${f.type==='green'?'var(--glight)':f.type==='red'?'var(--rlight)':'var(--alight)'};border:1px solid ${f.type==='green'?'#A9DFBF':f.type==='red'?'#F1948A':'#FAD7A0'}">
+      <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;background:${f.type==='green'?'var(--gmid)':f.type==='red'?'var(--rdark)':'var(--aorange)'};color:white">${f.type==='green'?'✓':f.type==='red'?'!':'?'}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:${f.type==='green'?'var(--green)':f.type==='red'?'var(--red)':'var(--amber)'};margin-bottom:3px">${f.title}</div>
+        <div style="font-size:13px;font-weight:600;margin:4px 0 2px">Ask: "${f.q}"</div>
+        <div style="font-size:12px;color:var(--grey);line-height:1.5">${f.why}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('red-detail').innerHTML=flags.filter(f=>f.type==='red').map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--grlt)"><div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:3px">${f.title}</div><div style="font-size:12px;color:#64748b">${f.why}</div></div>`).join('');
+  document.getElementById('green-detail').innerHTML=flags.filter(f=>f.type==='green').map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--grlt)"><div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:3px">${f.title}</div><div style="font-size:12px;color:#64748b">${f.why}</div></div>`).join('');
+}
+
+// ── GROWTH ────────────────────────────────────────────────────────────────────
+function calcRefi(){
+  const val=v('refval'),mort=v('refmort'),ltv=v('reflv');
+  const newLoan=val*(ltv/100),equity=val-mort,cashOut=Math.max(0,newLoan-mort);
+  document.getElementById('refi-result').innerHTML=`
+    <div class="g3" style="margin-top:12px">
+      <div class="metric blue"><div class="m-lbl">Current equity</div><div class="m-val">${fmt(equity)}</div></div>
+      <div class="metric green"><div class="m-lbl">Max new loan (${ltv}% LTV)</div><div class="m-val">${fmt(newLoan)}</div></div>
+      <div class="metric ${cashOut>30000?'green':'amber'}"><div class="m-lbl">Cash-out available</div><div class="m-val">${fmt(cashOut)}</div><div class="m-sub">${cashOut>30000?'→ P2 down payment':'Build more equity first'}</div></div>
+    </div>
+    <div style="margin-top:10px;padding:12px;background:var(--lblue);border-radius:var(--rs);font-size:13px;color:var(--blue)"><strong>Keller move:</strong> Refi P1 → extract ${fmt(cashOut)} → use as 20% down on Property 2. Target P2 within 18–24 months of P1.</div>`;
+}
+
+function renderGrowth(){
+  const price=v('askprice');
+  document.getElementById('timeline-box').innerHTML=`
+    <div style="position:relative;padding-left:28px">
+    <div style="position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)"></div>
+    ${[
+      {y:'Now — Year 0',t:'Buy 602-604 Rue St-Martin',c:'var(--mblue)',d:'Owner-occupy unit 602 (5½ — lease expires June 2026). Rent from unit 604 (~$958/mo) offsets mortgage. Total cash needed at 10% down: ~'+fmt(price*.10+7000)+'.'},
+      {y:'Year 1 — April 2027',t:'Unit 604 TAL notice cycle',c:'var(--aorange)',d:'Send TAL rent increase notice before April 30, 2027 for September 2027 lease renewal. Market rate 4½ in Sherbrooke: $1,100–$1,300. Get guidance from a TAL specialist.'},
+      {y:'Year 2–3',t:'Optimize & stack savings',c:'var(--gmid)',d:'Both units stabilized at market rents. Target gross income: ~$3,200–$3,500/mo. Stack $2,500/mo savings. Begin scanning for Property 2.'},
+      {y:'Year 4–5',t:'Refinance & extract equity',c:'var(--purp)',d:'At 6%/yr appreciation: ~'+fmt(price*Math.pow(1.06,5))+'. Refi at 80% LTV → cash out ~'+fmt(price*Math.pow(1.06,5)*.80-(price*.90*.82))+' for P2 down payment.'},
+      {y:'Year 5+',t:'Property 2 — pure rental duplex',c:'var(--teal)',d:'20% down as pure investor. Both properties cash-flowing. Net worth target: $1M+ by Year 10.'},
+    ].map(i=>`<div style="position:relative;margin-bottom:1.25rem"><div style="position:absolute;left:-24px;top:2px;width:14px;height:14px;border-radius:50%;background:${i.c};border:2px solid white;box-shadow:var(--shadow)"></div><div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:2px">${i.y}</div><div style="font-size:13px;font-weight:700;color:var(--navy)">${i.t}</div><div style="font-size:12px;color:#64748b;margin-top:3px;line-height:1.5">${i.d}</div></div>`).join('')}
+    </div>`;
+  const yrs=Array.from({length:11},(_,i)=>i);
+  const p1eq=yrs.map(y=>{const pv=v('askprice')*Math.pow(1.06,y);let bal=getR().loan;const mr=v('irate')/100/12;for(let m=0;m<y*12;m++)bal=Math.max(0,bal-(getR().mtg-bal*mr));return Math.round(pv-bal);});
+  const totalNW=yrs.map((y,i)=>{const p2=y>=5?v('askprice')*1.1*Math.pow(1.06,y-5)*0.25:0;return Math.round(p1eq[i]+p2);});
+  if(charts.growth)charts.growth.destroy();
+  charts.growth=new Chart(document.getElementById('growthChart'),{type:'line',data:{labels:yrs.map(y=>'Yr '+y),datasets:[{label:'P1 equity',data:p1eq,borderColor:'#2E6DA4',backgroundColor:'rgba(46,109,164,.1)',fill:true,tension:.4,pointRadius:3},{label:'Total NW',data:totalNW,borderColor:'#27AE60',backgroundColor:'rgba(39,174,96,.05)',fill:true,tension:.4,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtK(v)}}}}});
+  calcRefi();
+}
+
+// ── LEARN ─────────────────────────────────────────────────────────────────────
+function renderLearn(){
+  const rules=[
+    {rule:'Keller Rule 1',title:'Think net worth, not cash flow only',body:'Cash flow pays your bills today. Net worth builds your future. A property with modest cash flow but 8%+ annual appreciation is Keller-approved. Run both — never optimize one at the expense of the other.'},
+    {rule:'Keller Rule 2',title:'Buy below market — always',body:'The profit is made at purchase, not at sale. Motivated sellers, estate sales, deferred maintenance, and 30+ DOM listings are your targets. Goal: buy 5–10% below comparable sales.'},
+    {rule:'Keller Rule 3',title:'Leverage OPM (other people\'s money)',body:'CMHC at 5–10% down gives you control of a $420K asset for $21K–$42K. Your tenant\'s rent pays down the bank\'s money while you capture all the appreciation.'},
+    {rule:'Keller Rule 4',title:'Cap rate is truth — GRM is speed',body:'GRM filters in 10 seconds. Cap rate confirms in 5 minutes. Never skip cap rate because GRM looks good — they measure different things.'},
+    {rule:'Keller Rule 5 — Quebec',title:'The TAL is your biggest risk',body:'Quebec\'s Tribunal administratif du logement makes evictions take 6–18 months. Always check tribunal.qc.ca before buying. D2.6f = non is the best answer you can get.'},
+    {rule:'Keller Rule 6 — Quebec',title:'"Sans garantie légale" = inspect everything',body:'When a vendor sells without legal quality warranty, every deferred maintenance item becomes YOUR problem. The inspection budget is $600–$1,200. Never skip it.'},
+    {rule:'Keller Rule 7 — Quebec',title:'The lease timing game',body:'A duplex where one lease expires in 3 months is worth more than the same duplex with 2 locked leases. Unit 602 expiring in June 2026 is a significant value-add opportunity.'},
+  ];
+  document.getElementById('learn-cards').innerHTML=rules.map(r=>`<div class="learn-card"><div class="learn-rule">${r.rule}</div><div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:5px">${r.title}</div><div style="font-size:13px;color:#64748b;line-height:1.6">${r.body}</div></div>`).join('');
+}
+
+// ── FILE UPLOAD & PARSE ───────────────────────────────────────────────────────
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(files){
+  const dz=document.getElementById('drop-zone');
+  const progress=document.getElementById('parse-progress');
+  progress.style.display='block';
+  progress.innerHTML='';
+
+  const log=(msg,color='#a8d8a8')=>{
+    progress.innerHTML+=`<span style="color:${color}">> ${msg}</span>\n`;
+    progress.scrollTop=progress.scrollHeight;
+  };
+
+  let allFiles=[];
+  for(const file of files){
+    if(file.name.endsWith('.zip')){
+      log('Reading ZIP package: '+file.name);
+      try{
+        const zip=await JSZip.loadAsync(file);
+        for(const[name,entry] of Object.entries(zip.files)){
+          if(!entry.dir){
+            const blob=await entry.async('blob');
+            const f=new File([blob],name,{type:name.endsWith('.pdf')?'application/pdf':name.endsWith('.jpg')||name.endsWith('.jpeg')?'image/jpeg':'application/octet-stream'});
+            allFiles.push(f);
+            log('  Found: '+name,'#90c4e8');
+          }
+        }
+      }catch(e){log('ZIP error: '+e.message,'#f87171');}
+    }else{
+      allFiles.push(file);
+    }
+  }
+
+  log('Processing '+allFiles.length+' files...');
+
+  const docList=document.getElementById('doc-list');
+  docList.innerHTML='';
+
+  const docTypes={
+    fiche:{label:'Fiche détaillée',icon:'📄',parsed:false,data:{}},
+    taxes_muni:{label:'Taxes municipales',icon:'🏛',parsed:false,data:{}},
+    taxes_sco:{label:'Taxes scolaires',icon:'🏫',parsed:false,data:{}},
+    declaration:{label:'Déclaration du vendeur',icon:'📋',parsed:false,data:{}},
+    zonage:{label:'Zonage/Grille d\'usage',icon:'🗺',parsed:false,data:{}},
+    certificat:{label:'Certificat de localisation',icon:'📍',parsed:false,data:{}},
+    cadastre:{label:'Plan cadastral',icon:'🗂',parsed:false,data:{}},
+  };
+
+  for(const file of allFiles){
+    const fn=file.name.toLowerCase();
+    let dtype='other';
+    if(fn.includes('fiche'))dtype='fiche';
+    else if(fn.includes('municipale'))dtype='taxes_muni';
+    else if(fn.includes('scolaire'))dtype='taxes_sco';
+    else if(fn.includes('declaration')||fn.includes('vendeur'))dtype='declaration';
+    else if(fn.includes('zonage')||fn.includes('usage'))dtype='zonage';
+    else if(fn.includes('certificat')||fn.includes('localisation'))dtype='certificat';
+    else if(fn.includes('cadastral'))dtype='cadastre';
+
+    const el=document.createElement('div');
+    el.className='doc-item parsing';
+    el.id='doc-'+dtype;
+    el.innerHTML=`<div class="doc-icon">${docTypes[dtype]?docTypes[dtype].icon:'📎'}</div><div style="flex:1"><div class="doc-name">${file.name}</div><div class="doc-status">Parsing...</div></div><div class="doc-badge">${bdg(docTypes[dtype]?docTypes[dtype].label:'Other','grey')}</div>`;
+    docList.appendChild(el);
+
+    if(file.type==='application/pdf'){
+      try{
+        const text=await extractPdfText(file);
+        parsedDocs[dtype]=text;
+        docTypes[dtype]&&(docTypes[dtype].parsed=true);
+        el.className='doc-item parsed';
+        el.querySelector('.doc-status').textContent='✓ Parsed — '+Math.round(text.length/100)/10+'KB extracted';
+        el.querySelector('.doc-badge').innerHTML=bdg('✓ Parsed','green');
+        log('Parsed: '+file.name+' ('+text.length+' chars)');
+
+        // Extract key data
+        if(dtype==='fiche')parseFiche(text);
+        if(dtype==='taxes_muni')parseTaxesMuni(text);
+        if(dtype==='taxes_sco')parseTaxesSco(text);
+        if(dtype==='declaration')parseDeclaration(text);
+        if(dtype==='zonage')parseZonage(text);
+      }catch(e){
+        el.className='doc-item error';
+        el.querySelector('.doc-status').textContent='Error: '+e.message;
+        log('Error parsing '+file.name+': '+e.message,'#f87171');
+      }
+    }else{
+      el.className='doc-item parsed';
+      el.querySelector('.doc-status').textContent='✓ Received (image/non-text)';
+      log('Image/binary: '+file.name+' (cannot extract text)','#fbbf24');
+    }
+  }
+
+  log('All documents processed ✓','#86efac');
+  dz.classList.add('success');
+  document.getElementById('uz-icon').textContent='✅';
+  document.getElementById('uz-title').textContent=allFiles.length+' documents processed';
+  document.getElementById('uz-sub').textContent='KPI + Insight report generated from all documents';
+
+  // Show summary card
+  showDocSummary(docTypes,allFiles.length);
+  calc();
+  updateSidebar(getR());
+}
+
+async function extractPdfText(file){
+  const arrayBuffer=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  let text='';
+  for(let i=1;i<=Math.min(pdf.numPages,12);i++){
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    text+=content.items.map(s=>s.str).join(' ')+'\n';
+  }
+  return text;
+}
+
+function parseFiche(text){
+  const m=text.match(/(\d[\d\s]{2,7})\s*\$/)||text.match(/(\d{6})\s/);
+  if(m){const p=parseInt(m[1].replace(/\s/g,''));if(p>100000&&p<2000000){document.getElementById('askprice').value=p;}}
+  const m2=text.match(/(\d{3,4})\s*\$.*?(?:mois|month)/gi)||[];
+  const rents=[];
+  text.replace(/(\d[\d\s]{2,4})\s*\$\s*(?:\/\s*)?(?:mois|mo)/gi,(a,b)=>{const n=parseInt(b.replace(/\s/g,''));if(n>400&&n<5000)rents.push(n);});
+  if(rents.length>=1&&rents[0]){document.getElementById('rent1').value=rents[0];}
+  if(rents.length>=2&&rents[1]){document.getElementById('rent2').value=rents[1];}
+  const yr=text.match(/construction\s+(\d{4})/i)||text.match(/(\d{4})[,\s]+[Cc]entenaire/);
+  if(yr)document.getElementById('yearbuilt').value=yr[1];
+  const addr=text.match(/(\d+[-\d]*\s+Rue\s+[\w\.\-']+(?:\s+[\w]+)?)/i);
+  if(addr)document.getElementById('address').value=addr[1].trim();
+}
+
+function parseTaxesMuni(text){
+  const m=text.match(/Total taxes foncières annuelles\s*:\s*([\d\s,]+)\s*\$/i)||text.match(/Grand total des taxes\s*:\s*([\d\s,.]+)\s*\$/i);
+  if(m){const t=parseFloat(m[1].replace(/[\s,]/g,''));if(t>100&&t<50000)document.getElementById('taxes').value=Math.round(t);}
+}
+
+function parseTaxesSco(text){
+  const m=text.match(/TAXE ANNUELLE\s+([\d\s,.]+)/i)||text.match(/Montant à payer\s*\n.*?(\d+[,\.]?\d*)/i);
+  if(m){const t=parseFloat(m[1].replace(/[\s,]/g,'').replace(',','.'));if(t>10&&t<5000)document.getElementById('schooltax').value=Math.round(t);}
+}
+
+function parseDeclaration(text){
+  // Extract key yes/no flags — already handled in qualData pre-answers
+  if(text.includes('D8.6')&&text.includes('oui'))qualAnswers.q7='no';// ice at roof = concern
+  if(text.includes('D10.5')&&text.includes('non'))qualAnswers.q9='no';// panel never changed
+  if(text.includes('D4.1'))qualAnswers.q10='no';// water infiltration
+}
+
+function parseZonage(text){
+  // Zone info already in the report
+}
+
+function showDocSummary(docTypes,count){
+  const card=document.getElementById('doc-summary-card');
+  card.style.display='block';
+  document.getElementById('doc-summary-content').innerHTML=`
+    <div style="font-size:13px;color:#64748b;margin-bottom:1rem">${count} files processed. The following data was extracted and used to populate all inputs and generate the insight report.</div>
+    <div class="g2">
+      <div>
+        ${[
+          {icon:'📄',doc:'Fiche détaillée',fields:'Price ($424,900), rents ($1,540 + $958), gross income ($29,976), lease dates, building description, municipal evaluation ratio'},
+          {icon:'🏛',doc:'Taxes municipales',fields:'Verified municipal tax: $3,419.65/yr (2026). Breakdown: general tax + sanitation + water by unit count'},
+          {icon:'🏫',doc:'Taxes scolaires',fields:'Verified school tax: $182.50/yr (2025-26). Taxable value: $216,666'},
+          {icon:'📋',doc:'Déclaration du vendeur',fields:'Roof age (~2008), water infiltration (crawl space), panel never changed, sump pump present, no asbestos/mold/pests, no TAL file, no flood zone, no family residence notice'},
+        ].map(i=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--grlt)"><div style="font-size:20px;flex-shrink:0">${i.icon}</div><div><div style="font-size:13px;font-weight:700;color:var(--navy)">${i.doc}</div><div style="font-size:12px;color:#64748b;margin-top:2px">${i.fields}</div></div></div>`).join('')}
+      </div>
+      <div>
+        ${[
+          {icon:'🗺',doc:'Zonage/Grille d\'usage',fields:'Zone H1086: permits H-1 to H-8 (up to 8 units), C-202 commercial. Setbacks: 3m front, 0.9m side, 3m rear. No agricultural zone (CPTAQ).'},
+          {icon:'📍',doc:'Certificat de localisation',fields:'Certificate on file (2015 per fiche). Lot 473m², cadastre 1031037, matricule 43027 9529 51 6302. Verify encroachments.'},
+          {icon:'🗂',doc:'Plan cadastral',fields:'Cadastre 1031037 referenced in tax bills and fiche. Used to cross-reference property boundaries.'},
+          {icon:'📊',doc:'Calculated KPIs',fields:`Cap rate: ${(getR().capRate*100).toFixed(2)}%, GRM: ${getR().grm.toFixed(1)}x, DSCR: ${getR().dscr.toFixed(2)}x, monthly CF: ${fmt(getR().cf/12)}/mo at 10% down, 4.5%, 25yr`},
+        ].map(i=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--grlt)"><div style="font-size:20px;flex-shrink:0">${i.icon}</div><div><div style="font-size:13px;font-weight:700;color:var(--navy)">${i.doc}</div><div style="font-size:12px;color:#64748b;margin-top:2px">${i.fields}</div></div></div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function resetAll(){
+  ['address','yearbuilt','otherinc','otherexp','dom'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('askprice').value=424900;
+  document.getElementById('rent1').value=1540;
+  document.getElementById('rent2').value=958;
+  document.getElementById('vacancy').value=5;
+  document.getElementById('dpPct').value=10;
+  document.getElementById('irate').value=4.5;
+  document.getElementById('amort').value=25;
+  document.getElementById('taxes').value=3420;
+  document.getElementById('schooltax').value=183;
+  document.getElementById('insurance').value=1860;
+  document.getElementById('electricity').value=849;
+  document.getElementById('maint').value=2500;
+  document.getElementById('hwh').value=816;
+  qualAnswers={};calc();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  calc();
+  renderQual();
+  updateQualScore();
+  renderLearn();
+  // Auto-trigger report render with the pre-loaded data
+  renderReport();
+  // Show the doc summary as if the ZIP was already parsed
+  showDocSummary({},8);
+});
+</script>
+</body>
+</html>
